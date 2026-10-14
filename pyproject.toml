@@ -1,0 +1,19 @@
+[build-system]
+requires = ["setuptools>=68"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "open-jsaux-eink"
+version = "0.1.0"
+description = "Minimal BLE client for the JSAUX 5.83-inch E-Ink faceplate"
+requires-python = ">=3.9"
+dependencies = [
+    "bleak>=0.22,<3",
+    "Pillow>=10,<13",
+]
+
+[project.scripts]
+jsaux-eink = "jsaux_eink:main"
+
+[tool.setuptools]
+py-modules = ["jsaux_eink"]
