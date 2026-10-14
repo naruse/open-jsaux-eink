@@ -1,13 +1,25 @@
 # Open JSAUX E-Ink
 
-An unofficial, open-source client for sending custom 1-bit frames to the JSAUX
-5.83-inch E-Ink faceplate. The protocol was documented from the official V1.1
-SteamOS installer and verified against real hardware from macOS.
+An unofficial, cross-platform client for sending custom 1-bit frames to the
+JSAUX 5.83-inch E-Ink faceplate. The protocol was documented from the official
+V1.1 SteamOS installer and verified against real hardware from macOS.
 
 The E-Ink faceplate is a BLE peripheral, not a USB framebuffer. USB-C charges
 it; display data is sent through Bluetooth Low Energy.
 
-## Set up on macOS
+## Compatibility
+
+The client uses [Bleak](https://github.com/hbldh/bleak), which provides native
+BLE backends for:
+
+- Linux through BlueZ
+- macOS through CoreBluetooth
+- Windows through WinRT
+
+The protocol and image tests are platform-independent. Real hardware has
+currently been tested on macOS; Linux and Windows hardware reports are welcome.
+
+## Set up
 
 ```sh
 git clone https://github.com/naruse/open-jsaux-eink.git
@@ -17,9 +29,10 @@ python3 -m venv .venv
 .venv/bin/python -m pip install -e .
 ```
 
-On the first scan, macOS may ask whether Cursor or Python may use Bluetooth.
-If discovery returns nothing, enable it in **System Settings → Privacy &
-Security → Bluetooth**, wake the faceplate, and keep it near the Mac.
+On macOS, the first scan may request Bluetooth permission for the terminal or
+IDE running Python. If discovery returns nothing, check **System Settings →
+Privacy & Security → Bluetooth**, wake the faceplate, and keep it nearby. On
+Linux, ensure BlueZ and the Bluetooth service are installed and running.
 
 The faceplate does not need conventional Bluetooth pairing and may not appear
 in macOS's Bluetooth device list. The client discovers and connects to its BLE

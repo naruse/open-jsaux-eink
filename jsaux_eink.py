@@ -252,8 +252,8 @@ async def resolve_device(address: Optional[str], timeout: float) -> Any:
     candidates = await scan_candidates(timeout)
     if not candidates:
         raise RuntimeError(
-            "JSAUX E-INK was not found; wake it and allow Bluetooth access for "
-            "Cursor/Python in System Settings > Privacy & Security > Bluetooth"
+            "JSAUX E-INK was not found; wake it, confirm Bluetooth is enabled, "
+            "and allow Bluetooth access for the terminal or application running Python"
         )
     return candidates[0][0]
 
