@@ -11,6 +11,7 @@ from jsaux_eink import (
     framebuffer_to_image,
     make_test_pattern,
     parse_device_info,
+    parse_pnp_id,
     parse_response_frame,
     prepare_image,
 )
@@ -34,6 +35,14 @@ class ProtocolTests(unittest.TestCase):
 
     def test_parse_response_rejects_wrong_footer(self):
         self.assertIsNone(parse_response_frame(bytes.fromhex("91020000"), 0x02))
+
+    def test_parse_pnp_id(self):
+        pnp_id = parse_pnp_id(bytes.fromhex("028a2466820100"))
+
+        self.assertEqual(pnp_id.vendor_source, 2)
+        self.assertEqual(pnp_id.vendor_id, 0x248A)
+        self.assertEqual(pnp_id.product_id, 0x8266)
+        self.assertEqual(pnp_id.product_version, 1)
 
     def test_data_packet_has_big_endian_index_and_padding(self):
         packet = build_data_packet(0x1234, b"\xaa\xbb", 4)

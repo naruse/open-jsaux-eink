@@ -48,6 +48,10 @@ Find the panel:
 .venv/bin/jsaux-eink info
 ```
 
+`info` reports the display geometry, packet size, battery, standard PnP
+identity, firmware-revision availability, and whether an OTA endpoint is
+advertised. The command never writes to that endpoint.
+
 Prepare and send any static image:
 
 ```sh

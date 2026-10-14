@@ -28,6 +28,10 @@ except ImportError:
 SERVICE_UUID = "6E400001-B5A3-F393-E0A9-E50E24DCCA9E"
 WRITE_UUID = "6E400002-B5A3-F393-E0A9-E50E24DCCA9E"
 NOTIFY_UUID = "6E400003-B5A3-F393-E0A9-E50E24DCCA9E"
+PNP_ID_UUID = "00002A50-0000-1000-8000-00805F9B34FB"
+FIRMWARE_REVISION_UUID = "00002A26-0000-1000-8000-00805F9B34FB"
+OTA_SERVICE_UUID = "00010203-0405-0607-0809-0A0B0C0D1919"
+OTA_CHARACTERISTIC_UUID = "00010203-0405-0607-0809-0A0B0C0D2B12"
 
 HEADER_COMMAND = 0xAC
 FOOTER_COMMAND = 0xCA
@@ -65,6 +69,26 @@ class DeviceInfo:
             and self.width == WIDTH
             and self.height == HEIGHT
         )
+
+
+@dataclass(frozen=True)
+class PnpId:
+    vendor_source: int
+    vendor_id: int
+    product_id: int
+    product_version: int
+
+
+def parse_pnp_id(raw: bytes) -> PnpId:
+    value = bytes(raw)
+    if len(value) != 7:
+        raise ValueError("PnP ID must be exactly 7 bytes")
+    return PnpId(
+        vendor_source=value[0],
+        vendor_id=int.from_bytes(value[1:3], "little"),
+        product_id=int.from_bytes(value[3:5], "little"),
+        product_version=int.from_bytes(value[5:7], "little"),
+    )
 
 
 def parse_response_frame(raw: bytes, command: int) -> Optional[bytes]:
@@ -326,6 +350,49 @@ class JSAUXEInk:
             )
         return info
 
+    async def read_hardware_details(self) -> dict:
+        """Read optional standard GATT identity fields without changing the device."""
+        details = {
+            "pnp_id": None,
+            "firmware_revision": None,
+            "ota_service": False,
+            "ota_characteristic": False,
+        }
+        pnp_characteristic = self.client.services.get_characteristic(PNP_ID_UUID)
+        if pnp_characteristic is not None and "read" in pnp_characteristic.properties:
+            try:
+                details["pnp_id"] = parse_pnp_id(
+                    await self.client.read_gatt_char(pnp_characteristic)
+                )
+            except Exception:
+                details["pnp_id"] = None
+
+        firmware_characteristic = self.client.services.get_characteristic(
+            FIRMWARE_REVISION_UUID
+        )
+        if (
+            firmware_characteristic is not None
+            and "read" in firmware_characteristic.properties
+        ):
+            try:
+                raw_version = await self.client.read_gatt_char(
+                    firmware_characteristic
+                )
+                details["firmware_revision"] = bytes(raw_version).decode(
+                    "utf-8", errors="replace"
+                ).strip("\x00 ")
+            except Exception:
+                details["firmware_revision"] = None
+
+        details["ota_service"] = (
+            self.client.services.get_service(OTA_SERVICE_UUID) is not None
+        )
+        details["ota_characteristic"] = (
+            self.client.services.get_characteristic(OTA_CHARACTERISTIC_UUID)
+            is not None
+        )
+        return details
+
     async def send_framebuffer(
         self,
         framebuffer: bytes,
@@ -401,6 +468,40 @@ def _print_device_info(info: DeviceInfo) -> None:
     print("Supported: {}".format("yes" if info.is_supported else "no"))
 
 
+def _print_hardware_details(details: dict) -> None:
+    pnp_id = details.get("pnp_id")
+    if isinstance(pnp_id, PnpId):
+        source_name = {1: "Bluetooth SIG", 2: "USB Implementers Forum"}.get(
+            pnp_id.vendor_source,
+            "unknown",
+        )
+        print(
+            "PnP ID: source={} ({}), vendor=0x{:04X}, product=0x{:04X}, "
+            "version=0x{:04X}".format(
+                pnp_id.vendor_source,
+                source_name,
+                pnp_id.vendor_id,
+                pnp_id.product_id,
+                pnp_id.product_version,
+            )
+        )
+    else:
+        print("PnP ID: unavailable")
+
+    print(
+        "Firmware revision: {}".format(
+            details.get("firmware_revision") or "not exposed"
+        )
+    )
+    print(
+        "Telink-style OTA endpoint: {}".format(
+            "present"
+            if details.get("ota_service") and details.get("ota_characteristic")
+            else "not found"
+        )
+    )
+
+
 def _progress(current: int, total: int) -> None:
     if current == total or current == 1 or current % 36 == 0:
         print(
@@ -433,6 +534,7 @@ async def _run_info(args: argparse.Namespace) -> int:
     print("Connecting to {}...".format(device.address))
     async with JSAUXEInk(device) as display:
         _print_device_info(await display.query_info())
+        _print_hardware_details(await display.read_hardware_details())
     return 0
 
 
